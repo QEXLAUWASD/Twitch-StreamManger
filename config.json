@@ -1,0 +1,43 @@
+{
+    "base": "[粵/普/EN] | %game% | %date% |  @liulian_channel",
+    "process_name": {
+        "EFT" : "escapefromtarkov.exe",
+        "Cyberpunk 2077" : "Cyberpunk2077.exe",
+        "Valorant" : "VALORANT-Win64-Shipping.exe",
+        "Rainbow Six Siege" : "RainbowSix.exe",
+        "Apex Legends" : "r5apex_dx12.exe",
+        "battlefield 2042" : "bf2042.exe",
+        "Overwatch" : "Overwatch.exe",
+        "battlefield 5" : "bfv.exe",
+        "battlefield 6" : "bf6.exe",
+        "Tom Clancy's The Division 2" : "TheDivision2.exe",
+        "Tom Clancy's The Division" : "TheDivision.exe",
+        "PlayerUnknown's Battlegrounds" : "TslGame.exe",
+        "Monster Hunter Rise" : "MonsterHunterRise.exe",
+        "Monster Hunter World" : "MonsterHunterWorld.exe",
+        "Monster Hunter Wilds" : "MonsterHunterWilds.exe",
+        "Left 4 Dead 2" : "left4dead2.exe",
+        "Minecraft" : "javaw.exe",
+        "Cities: Skylines II": "Cities2.exe"
+    },
+    "TwitchCategoryName" : {
+        "EFT" : "Escape from Tarkov",
+        "Cyberpunk 2077" : "Cyberpunk 2077",
+        "Valorant" : "VALORANT",
+        "Rainbow Six Siege" : "Tom Clancy's Rainbow Six Siege X",
+        "Apex Legends" : "Apex Legends",
+        "battlefield 2042" : "Battlefield 2042",
+        "Overwatch" : "Overwatch",
+        "battlefield 5" : "Battlefield V",
+        "battlefield 6" : "Battlefield 6",
+        "Tom Clancy's The Division 2" : "Tom Clancy's The Division 2",
+        "Tom Clancy's The Division" : "Tom Clancy's The Division",
+        "PlayerUnknown's Battlegrounds" : "PLAYERUNKNOWN'S BATTLEGROUNDS",
+        "Monster Hunter Rise" : "Monster Hunter Rise",
+        "Monster Hunter World" : "Monster Hunter: World",
+        "Monster Hunter Wilds" : "Monster Hunter: Wilds",
+        "Left 4 Dead 2" : "Left 4 Dead 2",
+        "Minecraft" : "Minecraft",
+        "Cities: Skylines II": "Cities: Skylines II"
+    }
+}
