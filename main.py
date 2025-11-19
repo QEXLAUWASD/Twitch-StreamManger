@@ -11,12 +11,9 @@ import os
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 
-def obs():
-    subprocess.call("C:/Program Files/obs-studio/bin/64bit/obs64.exe", cwd='C:/Program Files/obs-studio/bin/64bit/')
-t = threading.Thread(target = obs)
 
 
-
+    
 # Load credentials from config.ini
 auth_config = configparser.ConfigParser()
 auth_config.read('config.ini')
@@ -495,7 +492,8 @@ class AppGUI:
         left = tk.Frame(frame)
         left.pack(side='left', fill='both', expand=True, padx=(0,6))
         tk.Label(left, text="Excluded Process Names (one per line)").pack(anchor='w')
-        self.exc_names_lb = tk.Listbox(left, height=14, width=36, exportselection=False)
+        # allow multi-select for names
+        self.exc_names_lb = tk.Listbox(left, height=14, width=36, exportselection=False, selectmode=tk.EXTENDED)
         self.exc_names_lb.pack(fill='both', expand=True, padx=2, pady=4)
         en_frame = tk.Frame(left)
         en_frame.pack(fill='x')
@@ -508,7 +506,8 @@ class AppGUI:
         middle = tk.Frame(frame)
         middle.pack(side='left', fill='both', expand=True, padx=(6,6))
         tk.Label(middle, text="Running Processes (select to add to exclusions)").pack(anchor='w')
-        self.running_procs_lb = tk.Listbox(middle, height=14, width=36, exportselection=False)
+        # allow multi-select for running processes
+        self.running_procs_lb = tk.Listbox(middle, height=14, width=36, exportselection=False, selectmode=tk.EXTENDED)
         self.running_procs_lb.pack(fill='both', expand=True, padx=2, pady=4)
         rp_btns = tk.Frame(middle)
         rp_btns.pack(fill='x')
@@ -520,7 +519,8 @@ class AppGUI:
         right = tk.Frame(frame)
         right.pack(side='left', fill='both', expand=True, padx=(6,0))
         tk.Label(right, text="Excluded Prefixes (starts-with)").pack(anchor='w')
-        self.exc_prefix_lb = tk.Listbox(right, height=14, width=36, exportselection=False)
+        # allow multi-select for prefixes
+        self.exc_prefix_lb = tk.Listbox(right, height=14, width=36, exportselection=False, selectmode=tk.EXTENDED)
         self.exc_prefix_lb.pack(fill='both', expand=True, padx=2, pady=4)
         pre_frame = tk.Frame(right)
         pre_frame.pack(fill='x')
@@ -561,34 +561,62 @@ class AppGUI:
         except Exception as e:
             print(f"❌ Failed to refresh running processes list: {e}")
 
-    def add_selected_running_to_excluded_name(self):
-        sel = self.running_procs_lb.curselection()
-        if not sel:
-            messagebox.showinfo("Select", "Choose a running process to add to excluded names.")
-            return
-        name = self.running_procs_lb.get(sel[0]).strip()
-        if not name:
-            return
-        EXCLUDED_NAMES.add(name.lower())
-        self.refresh_exclusions_lists()
-        self.refresh_running_processes_list()
-        messagebox.showinfo("Added", f"Added '{name}' to excluded process names.")
+    # ---- 新增缺少的方法，修正 AttributeError ----
+    def refresh_exclusions_lists(self):
+        """Populate exclusion listboxes from global EXCLUDED_NAMES / EXCLUDED_PREFIXES."""
+        try:
+            self.exc_names_lb.delete(0, tk.END)
+            for name in sorted(EXCLUDED_NAMES):
+                self.exc_names_lb.insert(tk.END, name)
+            self.exc_prefix_lb.delete(0, tk.END)
+            for p in EXCLUDED_PREFIXES:
+                self.exc_prefix_lb.insert(tk.END, p)
+        except Exception as e:
+            print(f"❌ Failed to refresh exclusions lists: {e}")
 
-    def add_selected_running_to_excluded_prefix(self):
-        sel = self.running_procs_lb.curselection()
-        if not sel:
-            messagebox.showinfo("Select", "Choose a running process to add as prefix exclusion.")
+    def add_excluded_name(self):
+        val = (self.exc_name_entry.get() or "").strip()
+        if not val:
+            messagebox.showwarning("Missing", "Enter a process name to exclude.")
             return
-        name = self.running_procs_lb.get(sel[0]).strip()
-        if not name:
-            return
-        # derive a reasonable prefix: take part before first '.' or full name if none
-        prefix = name.split('.', 1)[0].lower()
-        if prefix not in EXCLUDED_PREFIXES:
-            EXCLUDED_PREFIXES.append(prefix)
+        EXCLUDED_NAMES.add(val.lower())
+        self.exc_name_entry.delete(0, tk.END)
         self.refresh_exclusions_lists()
-        self.refresh_running_processes_list()
-        messagebox.showinfo("Added", f"Added prefix '{prefix}' to excluded prefixes.")
+
+    def remove_selected_excluded_name(self):
+        sel = self.exc_names_lb.curselection()
+        if not sel:
+            messagebox.showinfo("Select", "Choose one or more names to remove.")
+            return
+        # remove all selected (iterate reversed to avoid index shift)
+        for i in reversed(sel):
+            name = self.exc_names_lb.get(i)
+            EXCLUDED_NAMES.discard(name.lower())
+        self.refresh_exclusions_lists()
+
+    def add_excluded_prefix(self):
+        val = (self.exc_prefix_entry.get() or "").strip()
+        if not val:
+            messagebox.showwarning("Missing", "Enter a prefix to exclude.")
+            return
+        p = val.lower()
+        if p not in EXCLUDED_PREFIXES:
+            EXCLUDED_PREFIXES.append(p)
+        self.exc_prefix_entry.delete(0, tk.END)
+        self.refresh_exclusions_lists()
+
+    def remove_selected_excluded_prefix(self):
+        sel = self.exc_prefix_lb.curselection()
+        if not sel:
+            messagebox.showinfo("Select", "Choose one or more prefixes to remove.")
+            return
+        for i in reversed(sel):
+            p = self.exc_prefix_lb.get(i)
+            try:
+                EXCLUDED_PREFIXES.remove(p)
+            except ValueError:
+                pass
+        self.refresh_exclusions_lists()
 
     def save_exclusions_and_close(self):
         try:
@@ -619,6 +647,46 @@ class AppGUI:
         for w in self.root.winfo_children():
             if isinstance(w, tk.Toplevel) and w.title() == "Edit Excluded Processes":
                 w.destroy()
+
+    def add_selected_running_to_excluded_name(self):
+        sel = self.running_procs_lb.curselection()
+        if not sel:
+            messagebox.showinfo("Select", "Choose one or more running processes to add to excluded names.")
+            return
+        added = []
+        for i in sel:
+            name = self.running_procs_lb.get(i).strip()
+            if not name:
+                continue
+            EXCLUDED_NAMES.add(name.lower())
+            added.append(name)
+        self.refresh_exclusions_lists()
+        self.refresh_running_processes_list()
+        if added:
+            messagebox.showinfo("Added", f"Added to excluded names:\n{', '.join(added)}")
+        else:
+            messagebox.showinfo("Added", "No valid names were added.")
+
+    def add_selected_running_to_excluded_prefix(self):
+        sel = self.running_procs_lb.curselection()
+        if not sel:
+            messagebox.showinfo("Select", "Choose one or more running processes to add as prefix exclusions.")
+            return
+        added = []
+        for i in sel:
+            name = self.running_procs_lb.get(i).strip()
+            if not name:
+                continue
+            prefix = name.split('.', 1)[0].lower()
+            if prefix not in EXCLUDED_PREFIXES:
+                EXCLUDED_PREFIXES.append(prefix)
+                added.append(prefix)
+        self.refresh_exclusions_lists()
+        self.refresh_running_processes_list()
+        if added:
+            messagebox.showinfo("Added", f"Added prefixes:\n{', '.join(added)}")
+        else:
+            messagebox.showinfo("Added", "No new prefixes were added.")
 
 if __name__ == '__main__':
     # start OBS thread (existing behavior)
