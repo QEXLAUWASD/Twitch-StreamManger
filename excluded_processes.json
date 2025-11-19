@@ -1,0 +1,42 @@
+{
+    "exclude_process_names": [
+        "System",
+        "System Idle Process",
+        "smss.exe",
+        "csrss.exe",
+        "wininit.exe",
+        "winlogon.exe",
+        "lsass.exe",
+        "services.exe",
+        "svchost.exe",
+        "spoolsv.exe",
+        "dwm.exe",
+        "explorer.exe",
+        "taskhostw.exe",
+        "conhost.exe",
+        "RuntimeBroker.exe",
+        "SearchUI.exe",
+        "SearchIndexer.exe",
+        "ShellExperienceHost.exe",
+        "sihost.exe",
+        "ctfmon.exe",
+        "fontdrvhost.exe",
+        "audiodg.exe",
+        "WmiPrvSE.exe",
+        "msedge.exe",
+        "chrome.exe",
+        "firefox.exe",
+        "discord.exe",
+        "steam.exe",
+        "EpicGamesLauncher.exe",
+        "Battle.net.exe",
+        "python.exe",
+        "pythonw.exe",
+        "code.exe",
+        "node.exe"
+    ],
+    "exclude_prefixes": [
+        "MicrosoftEdge",
+        "ApplicationFrameHost"
+    ]
+}
