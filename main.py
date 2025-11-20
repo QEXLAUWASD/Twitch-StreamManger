@@ -689,8 +689,6 @@ class AppGUI:
             messagebox.showinfo("Added", "No new prefixes were added.")
 
 if __name__ == '__main__':
-    # start OBS thread (existing behavior)
-    t.start()
     print("OBS Started!")
     print("🎬 Twitch Stream Auto-Title Started!")
     print(f"🔍 Monitoring for games: {list(process_names.keys())}")
