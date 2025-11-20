@@ -1,4 +1,3 @@
-import subprocess
 import requests
 import json
 import time
@@ -12,8 +11,58 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 
 
+# check for config.ini and create a template and let user input values
+if not os.path.exists('config.ini'):
+    print("⚠️ config.ini not found. Creating a template...")
+    client_id = input("Enter your Twitch client_id: ")
+    access_token = input("Enter your Twitch access_token: ")
+    streamer_id = input("Enter your Twitch streamer_id (user ID): ")
+    with open('config.ini', 'w', encoding='utf-8') as f:
+        f.write('[Twitch]\n')
+        f.write(f'client_id = {client_id}\n')
+        f.write(f'access_token = {access_token}\n')
+        f.write(f'streamer_id = {streamer_id}\n')
+        print("Template config.ini created. Please fill in the values and restart the application.")
+    exit(0)
 
-    
+# check for config.json if not exists, download a default template from GitHub
+if not os.path.exists('config.json'):
+    print("⚠️ config.json not found. Downloading a default template...")
+    default_url = 'https://raw.githubusercontent.com/QEXLAUWASD/Twitch-StreamManger/refs/heads/main/Default_config.json'  # replace with actual URL
+    try:
+        response = requests.get(default_url, timeout=10)
+        if response.status_code == 200:
+            with open('config.json', 'w', encoding='utf-8') as f:
+                f.write(response.text)
+            print("Default config.json downloaded.")
+        else:
+            print(f"❌ Failed to download default config.json: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Error downloading config.json: {e}")
+        exit(1)
+        
+# check for excluded_processes.json, create empty if not exists
+if not os.path.exists('excluded_processes.json'):
+    print("⚠️ excluded_processes.json not found. Creating an empty template...")
+    with open('excluded_processes.json', 'w', encoding='utf-8') as f:
+        json.dump({
+            "exclude_process_names": [
+                "System",
+                "System Idle Process",
+                "svchost.exe",
+                "explorer.exe",
+                "cmd.exe",
+                "python.exe",
+                "pythonw.exe"
+            ],
+            "exclude_prefixes": [
+                "MicrosoftEdge",
+                "Google Chrome",
+                "Brave Browser"
+            ]
+        }, f, indent=4)
+    print("Template excluded_processes.json created.")
+
 # Load credentials from config.ini
 auth_config = configparser.ConfigParser()
 auth_config.read('config.ini')
