@@ -10,14 +10,15 @@ import os
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # check for config.ini and create a template and let user input values
-if not os.path.exists('config.ini'):
+if not os.path.exists(os.path.join(BASE_DIR, 'config.ini')):
     print("⚠️ config.ini not found. Creating a template...")
     client_id = input("Enter your Twitch client_id: ")
     access_token = input("Enter your Twitch access_token: ")
     streamer_id = input("Enter your Twitch streamer_id (user ID): ")
-    with open('config.ini', 'w', encoding='utf-8') as f:
+    with open(os.path.join(BASE_DIR, 'config.ini'), 'w', encoding='utf-8') as f:
         f.write('[Twitch]\n')
         f.write(f'client_id = {client_id}\n')
         f.write(f'access_token = {access_token}\n')
@@ -26,13 +27,13 @@ if not os.path.exists('config.ini'):
     exit(0)
 
 # check for config.json if not exists, download a default template from GitHub
-if not os.path.exists('config.json'):
+if not os.path.exists(os.path.join(BASE_DIR, 'config.json')):
     print("⚠️ config.json not found. Downloading a default template...")
     default_url = 'https://raw.githubusercontent.com/QEXLAUWASD/Twitch-StreamManger/refs/heads/main/Default_config.json'  # replace with actual URL
     try:
         response = requests.get(default_url, timeout=10)
         if response.status_code == 200:
-            with open('config.json', 'w', encoding='utf-8') as f:
+            with open(os.path.join(BASE_DIR, 'config.json'), 'w', encoding='utf-8') as f:
                 f.write(response.text)
             print("Default config.json downloaded.")
         else:
@@ -42,9 +43,9 @@ if not os.path.exists('config.json'):
         exit(1)
         
 # check for excluded_processes.json, create empty if not exists
-if not os.path.exists('excluded_processes.json'):
+if not os.path.exists(os.path.join(BASE_DIR, 'excluded_processes.json')):
     print("⚠️ excluded_processes.json not found. Creating an empty template...")
-    with open('excluded_processes.json', 'w', encoding='utf-8') as f:
+    with open(os.path.join(BASE_DIR, 'excluded_processes.json'), 'w', encoding='utf-8') as f:
         json.dump({
             "exclude_process_names": [
                 "System",
@@ -84,14 +85,15 @@ STREAMER_ID = creds['streamer_id']
 # Read config file for title templates and process names
 def load_config():
     try:
-        with open("config.json", 'r', encoding='utf-8') as f:
+        path = os.path.join(BASE_DIR, "config.json")
+        with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f"Error loading config.json: {e}")
         return {}
 
 app_config = load_config()
-base_template = app_config.get('base', '[粵/普/EN] | %game% | %date% |  @liulian_channel')
+base_template = app_config.get('base', ' %game% %date%')
 process_names = app_config.get('process_name', {})
 twitch_categories = app_config.get('TwitchCategoryName', {})
 
@@ -105,7 +107,7 @@ EXCLUDED_PREFIXES = []
 def load_excluded_processes():
     """Load excluded process names/prefixes from excluded_processes.json (optional)."""
     global EXCLUDED_NAMES, EXCLUDED_PREFIXES
-    path = os.path.join(os.path.dirname(__file__), 'excluded_processes.json')
+    path = os.path.join(BASE_DIR, 'excluded_processes.json')
     try:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -142,7 +144,7 @@ def save_config_to_file():
             app_config['TwitchCategoryName'] = {}
         if 'base' not in app_config:
             app_config['base'] = base_template
-        with open("config.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(BASE_DIR, "config.json"), "w", encoding="utf-8") as f:
             json.dump(app_config, f, ensure_ascii=False, indent=4)
         print("🔖 config.json saved.")
     except Exception as e:
@@ -738,7 +740,6 @@ class AppGUI:
             messagebox.showinfo("Added", "No new prefixes were added.")
 
 if __name__ == '__main__':
-    print("OBS Started!")
     print("🎬 Twitch Stream Auto-Title Started!")
     print(f"🔍 Monitoring for games: {list(process_names.keys())}")
     
