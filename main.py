@@ -7,10 +7,19 @@ import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import os
+import sys
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Determine BASE_DIR in both dev and PyInstaller-packed cases:
+# - When running as a PyInstaller onefile exe, prefer the executable folder for user-editable files:
+#   BASE_DIR = os.path.dirname(sys.executable)
+# - Use sys._MEIPASS only to read bundled, read-only resources inside the temp bundle.
+if getattr(sys, "frozen", False):
+    # running as bundled executable
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # check for config.ini and create a template and let user input values
 if not os.path.exists(os.path.join(BASE_DIR, 'config.ini')):
@@ -755,7 +764,7 @@ if __name__ == '__main__':
     # start file observer (existing behavior)
     event_handler = ConfigFileEventHandler()
     observer = Observer()
-    observer.schedule(event_handler, path='.', recursive=False)
+    observer.schedule(event_handler, path=BASE_DIR, recursive=False)
     observer.start()
 
     # run monitor in background thread so we can run a GUI in main thread
