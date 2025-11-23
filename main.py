@@ -15,15 +15,24 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # check for config.ini and create a template and let user input values
 if not os.path.exists(os.path.join(BASE_DIR, 'config.ini')):
     print("⚠️ config.ini not found. Creating a template...")
-    client_id = input("Enter your Twitch client_id: ")
-    access_token = input("Enter your Twitch access_token: ")
-    streamer_id = input("Enter your Twitch streamer_id (user ID): ")
+    # use tkinter dialogs to collect credentials (GUI input instead of console)
+    root_tmp = tk.Tk()
+    root_tmp.withdraw()
+    client_id = simpledialog.askstring("Twitch Credentials", "Enter your Twitch client_id:", parent=root_tmp)
+    access_token = simpledialog.askstring("Twitch Credentials", "Enter your Twitch access_token:", parent=root_tmp, show='*')
+    streamer_id = simpledialog.askstring("Twitch Credentials", "Enter your Twitch streamer_id (user ID):", parent=root_tmp)
+    root_tmp.destroy()
+
+    if not client_id or not access_token or not streamer_id:
+        tk.messagebox.showerror("Missing", "Credentials not provided. Exiting.")
+        exit(0)
+
     with open(os.path.join(BASE_DIR, 'config.ini'), 'w', encoding='utf-8') as f:
         f.write('[Twitch]\n')
         f.write(f'client_id = {client_id}\n')
         f.write(f'access_token = {access_token}\n')
         f.write(f'streamer_id = {streamer_id}\n')
-        print("Template config.ini created. Please fill in the values and restart the application.")
+    tk.messagebox.showinfo("Template Created", "Template config.ini created. Please fill in the values and restart the application.")
     exit(0)
 
 # check for config.json if not exists, download a default template from GitHub
