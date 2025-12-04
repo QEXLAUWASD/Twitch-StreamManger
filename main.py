@@ -319,37 +319,51 @@ def monitor_game_and_update_title():
     last_game = None
     debug_count = 0
     global CURRENT_GAME
-    
+
     print("🎮 Starting game monitoring...")
     print(f"Monitoring for {len(process_names)} games")
-    
-    # Initial debug scan
+
     debug_all_processes()
-    
+
+    # 取得 UI 實例
+    app_instance = None
+    for obj in globals().values():
+        if isinstance(obj, AppGUI):
+            app_instance = obj
+            break
+
     while True:
         current_game = get_current_game()
-        CURRENT_GAME = current_game  # update global for UI display
-        
+        CURRENT_GAME = current_game
+
+        # 取得自訂文字
+        custom_text = ""
+        if app_instance and hasattr(app_instance, "custom_text_entry"):
+            try:
+                custom_text = app_instance.custom_text_entry.get().strip()
+            except Exception:
+                custom_text = ""
+
         if current_game != last_game:
             last_game = current_game
             print(f'🔄 Game changed to: {current_game}')
-            
+
             # Format and update title
             new_title = format_title(base_template, current_game)
+            if custom_text:
+                new_title = f"{new_title} {custom_text}"
             update_stream_title(new_title)
-            
-            # Get category name
+
             category_name = twitch_categories.get(current_game, 'Just Chatting')
             update_stream_category(category_name)
-        
-        # Periodic debug every 10 checks (5 minutes)
+
         debug_count += 1
         if debug_count >= 10:
             print("\n--- Periodic Process Check ---")
-            get_current_game()  # This will show recent processes
+            get_current_game()
             debug_count = 0
-            
-        time.sleep(30)  # Check every 30 seconds
+
+        time.sleep(30)
 
 class ConfigFileEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
@@ -395,33 +409,31 @@ class AppGUI:
         tk.Label(frm, text="Twitch Category:").grid(row=2, column=0, sticky='e')
 
         self.entry_game = tk.Entry(frm, width=40)
-        # replaced free-text process entry with a selectable listbox
         self.proc_listbox = tk.Listbox(frm, height=6, width=40, exportselection=False)
         self.entry_cat = tk.Entry(frm, width=40)
         self.entry_game.grid(row=0, column=1, padx=6, pady=2)
         self.proc_listbox.grid(row=1, column=1, padx=6, pady=2)
         self.entry_cat.grid(row=2, column=1, padx=6, pady=2)
 
-        # Button to refresh detected processes list
         proc_btn_frame = tk.Frame(frm)
         proc_btn_frame.grid(row=1, column=2, padx=(4,0), sticky='n')
         tk.Button(proc_btn_frame, text="Refresh", command=self.refresh_process_list).pack(pady=(0,2))
         tk.Button(proc_btn_frame, text="Auto-select match", command=self.auto_select_process).pack()
 
+        # 新增：自訂標題結尾輸入框
+        tk.Label(root, text="Custom Text (will be appended to the end of the title):", font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(10,0))
+        self.custom_text_entry = tk.Entry(root, width=80)
+        self.custom_text_entry.pack(padx=10, pady=(0,10))
+        self.custom_text_entry.insert(0, "")  # 預設空白
+
         tk.Button(root, text="Add / Update mapping", command=self.add_mapping).pack(pady=8)
         self.status_label = tk.Label(root, text="", fg='green')
         self.status_label.pack()
 
-        # populate mappings and running processes
         self.refresh_mappings()
         self.refresh_process_list()
-        # update process list periodically (60 seconds)
         self.root.after(60000, self._periodic_process_refresh)
-
-        # Periodically update current game label
         self._update_loop()
-
-        # Handle close
         root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def refresh_mappings(self):
