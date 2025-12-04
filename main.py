@@ -427,6 +427,8 @@ class AppGUI:
         self.custom_text_entry.insert(0, "")  # 預設空白
 
         tk.Button(root, text="Add / Update mapping", command=self.add_mapping).pack(pady=8)
+        # 新增：手動更新按鈕
+        tk.Button(root, text="Manual Update Title/Category", command=self.manual_update).pack(pady=4)
         self.status_label = tk.Label(root, text="", fg='green')
         self.status_label.pack()
 
@@ -768,6 +770,18 @@ class AppGUI:
             messagebox.showinfo("Added", f"Added prefixes:\n{', '.join(added)}")
         else:
             messagebox.showinfo("Added", "No new prefixes were added.")
+
+    # 新增：手動更新 Twitch 標題與分類
+    def manual_update(self):
+        current_game = get_current_game()
+        custom_text = self.custom_text_entry.get().strip()
+        new_title = format_title(base_template, current_game)
+        if custom_text:
+            new_title = f"{new_title} {custom_text}"
+        update_stream_title(new_title)
+        category_name = twitch_categories.get(current_game, 'Just Chatting')
+        update_stream_category(category_name)
+        self.status_label.config(text=f"Manual update sent: {new_title}", fg='blue')
 
 if __name__ == '__main__':
     print("🎬 Twitch Stream Auto-Title Started!")
