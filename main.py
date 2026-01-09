@@ -11,6 +11,10 @@ import sys
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 
+# Mirror UI state into globals so background thread never touches Tk widgets
+CUSTOM_SUFFIX = ""
+KEEP_LAST_WHEN_NO_GAME = True
+
 # Determine BASE_DIR in both dev and PyInstaller-packed cases:
 # - When running as a PyInstaller onefile exe, prefer the executable folder for user-editable files:
 #   BASE_DIR = os.path.dirname(sys.executable)
@@ -33,7 +37,7 @@ if not os.path.exists(os.path.join(BASE_DIR, 'config.ini')):
     root_tmp.destroy()
 
     if not client_id or not access_token or not streamer_id:
-        tk.messagebox.showerror("Missing", "Credentials not provided. Exiting.")
+        messagebox.showerror("Missing", "Credentials not provided. Exiting.")
         exit(0)
 
     with open(os.path.join(BASE_DIR, 'config.ini'), 'w', encoding='utf-8') as f:
@@ -41,7 +45,7 @@ if not os.path.exists(os.path.join(BASE_DIR, 'config.ini')):
         f.write(f'client_id = {client_id}\n')
         f.write(f'access_token = {access_token}\n')
         f.write(f'streamer_id = {streamer_id}\n')
-    tk.messagebox.showinfo("Template Created", "Template config.ini created. Please fill in the values and restart the application.")
+    messagebox.showinfo("Template Created", "Template config.ini created. Please fill in the values and restart the application.")
     exit(0)
 
 # check for config.json if not exists, download a default template from GitHub
@@ -84,7 +88,7 @@ if not os.path.exists(os.path.join(BASE_DIR, 'excluded_processes.json')):
 
 # Load credentials from config.ini
 auth_config = configparser.ConfigParser()
-auth_config.read('config.ini')
+auth_config.read(os.path.join(BASE_DIR, 'config.ini'))
 creds = {
     'client_id': auth_config.get('Twitch', 'client_id'),
     'access_token': auth_config.get('Twitch', 'access_token'),
@@ -169,7 +173,7 @@ def save_config_to_file():
         print(f"❌ Failed to save config.json: {e}")
 
 # New: function to add or update a custom game/process/category
-def add_custom_game(game_name: str, process_name_str: str, twitch_category: str = None):
+def add_custom_game(game_name: str, process_name_str: str, twitch_category: str | None = None):
     """
     Add or update a mapping: game_name -> process_name_str and optional twitch_category.
     Saves to config.json and reloads runtime variables.
@@ -230,7 +234,7 @@ def get_current_game():
     for proc in detected_processes[-10:]:  # Last 10 processes
         print(f"  - {proc}")
     
-    return 'Just Chatting'  # default game if none found
+    return None  # no game found
 
 # Enhanced debug function
 def debug_all_processes():
@@ -325,24 +329,19 @@ def monitor_game_and_update_title():
 
     debug_all_processes()
 
-    # 取得 UI 實例
-    app_instance = None
-    for obj in globals().values():
-        if isinstance(obj, AppGUI):
-            app_instance = obj
-            break
-
     while True:
-        current_game = get_current_game()
-        CURRENT_GAME = current_game
+        detected_game = get_current_game()
 
-        # 取得自訂文字
-        custom_text = ""
-        if app_instance and hasattr(app_instance, "custom_text_entry"):
-            try:
-                custom_text = app_instance.custom_text_entry.get().strip()
-            except Exception:
-                custom_text = ""
+        # When nothing detected, either keep last title or switch to default
+        if detected_game is None:
+            CURRENT_GAME = "No game detected"
+            if KEEP_LAST_WHEN_NO_GAME:
+                time.sleep(30)
+                continue
+            current_game = 'Just Chatting'
+        else:
+            current_game = detected_game
+            CURRENT_GAME = current_game
 
         if current_game != last_game:
             last_game = current_game
@@ -350,8 +349,8 @@ def monitor_game_and_update_title():
 
             # Format and update title
             new_title = format_title(base_template, current_game)
-            if custom_text:
-                new_title = f"{new_title} {custom_text}"
+            if CUSTOM_SUFFIX:
+                new_title = f"{new_title} {CUSTOM_SUFFIX}"
             update_stream_title(new_title)
 
             category_name = twitch_categories.get(current_game, 'Just Chatting')
@@ -425,6 +424,16 @@ class AppGUI:
         self.custom_text_entry = tk.Entry(root, width=80)
         self.custom_text_entry.pack(padx=10, pady=(0,10))
         self.custom_text_entry.insert(0, "")  # 預設空白
+
+        # New: when no game/process is detected, keep last title or switch to default
+        self.keep_last_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            root,
+            text="When no game detected, keep last title (do not switch to Just Chatting)",
+            variable=self.keep_last_var,
+            onvalue=True,
+            offvalue=False,
+        ).pack(anchor='w', padx=10, pady=(0, 10))
 
         tk.Button(root, text="Add / Update mapping", command=self.add_mapping).pack(pady=8)
         # 新增：手動更新按鈕
@@ -545,6 +554,15 @@ class AppGUI:
 
     def _update_loop(self):
         # update the current detected game every second
+        global CUSTOM_SUFFIX, KEEP_LAST_WHEN_NO_GAME
+        try:
+            CUSTOM_SUFFIX = (self.custom_text_entry.get() or "").strip()
+        except Exception:
+            CUSTOM_SUFFIX = ""
+        try:
+            KEEP_LAST_WHEN_NO_GAME = bool(self.keep_last_var.get())
+        except Exception:
+            KEEP_LAST_WHEN_NO_GAME = True
         self.current_label.config(text=CURRENT_GAME)
         self.root.after(1000, self._update_loop)
 
@@ -703,7 +721,7 @@ class AppGUI:
 
     def save_exclusions_and_close(self):
         try:
-            path = os.path.join(os.path.dirname(__file__), 'excluded_processes.json')
+            path = os.path.join(BASE_DIR, 'excluded_processes.json')
             data = {
                 'exclude_process_names': sorted(list(EXCLUDED_NAMES)),
                 'exclude_prefixes': EXCLUDED_PREFIXES
@@ -773,8 +791,12 @@ class AppGUI:
 
     # 新增：手動更新 Twitch 標題與分類
     def manual_update(self):
-        current_game = get_current_game()
-        custom_text = self.custom_text_entry.get().strip()
+        detected_game = get_current_game()
+        if detected_game is None and self.keep_last_var.get():
+            self.status_label.config(text="No game detected; kept last title.", fg='blue')
+            return
+        current_game = detected_game if detected_game is not None else 'Just Chatting'
+        custom_text = (self.custom_text_entry.get() or "").strip()
         new_title = format_title(base_template, current_game)
         if custom_text:
             new_title = f"{new_title} {custom_text}"
