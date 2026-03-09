@@ -122,6 +122,70 @@ twitch_categories = app_config.get('TwitchCategoryName', {})
 # new global for UI to display current detected game
 CURRENT_GAME = 'Unknown'
 
+# UI language state (runtime switchable)
+LANGUAGE = "en"
+LANGUAGE_LABEL_TO_CODE = {
+    "English": "en",
+    "中文": "zh"
+}
+
+I18N = {
+    "en": {
+        "app_title": "Twitch Auto-Title - UI",
+        "current_detected_game": "Current Detected Game:",
+        "configured_mappings": "Configured Game -> Process mappings:",
+        "reload_config": "Reload config.json",
+        "remove_selected": "Remove selected",
+        "edit_exclusions": "Edit Exclusions",
+        "language": "Language:",
+        "game_name": "Game Name:",
+        "process_select": "Process (select):",
+        "twitch_category": "Twitch Category:",
+        "refresh": "Refresh",
+        "auto_select_match": "Auto-select match",
+        "custom_text_hint": "Custom Text (will be appended to the end of the title):",
+        "keep_last_when_none": "When no game detected, keep last title (do not switch to Just Chatting)",
+        "add_update": "Add / Update mapping",
+        "manual_update": "Manual Update Title/Category",
+        "excluded_window": "Edit Excluded Processes",
+        "excluded_names": "Excluded Process Names (one per line)",
+        "running_processes": "Running Processes (select to add to exclusions)",
+        "excluded_prefixes": "Excluded Prefixes (starts-with)",
+        "add": "Add",
+        "save": "Save",
+        "close": "Close",
+        "add_to_names": "Add Selected -> Excluded Names",
+        "add_to_prefixes": "Add Selected -> Excluded Prefixes"
+    },
+    "zh": {
+        "app_title": "Twitch 自動標題 - 介面",
+        "current_detected_game": "目前偵測到的遊戲:",
+        "configured_mappings": "已設定 遊戲 -> 程序 對應:",
+        "reload_config": "重新載入 config.json",
+        "remove_selected": "移除所選",
+        "edit_exclusions": "編輯排除清單",
+        "language": "語言:",
+        "game_name": "遊戲名稱:",
+        "process_select": "程序 (選擇):",
+        "twitch_category": "Twitch 分類:",
+        "refresh": "重新整理",
+        "auto_select_match": "自動選擇匹配",
+        "custom_text_hint": "自訂文字 (會加在標題結尾):",
+        "keep_last_when_none": "未偵測到遊戲時保留上一個標題 (不切換到 Just Chatting)",
+        "add_update": "新增 / 更新對應",
+        "manual_update": "手動更新標題/分類",
+        "excluded_window": "編輯排除程序",
+        "excluded_names": "排除程序名稱 (每行一個)",
+        "running_processes": "執行中的程序 (可選取加入排除)",
+        "excluded_prefixes": "排除前綴 (starts-with)",
+        "add": "新增",
+        "save": "儲存",
+        "close": "關閉",
+        "add_to_names": "將所選加入排除名稱",
+        "add_to_prefixes": "將所選加入排除前綴"
+    }
+}
+
 # --- new: excluded processes support ---
 EXCLUDED_NAMES = set()
 EXCLUDED_PREFIXES = []
@@ -379,33 +443,50 @@ class ConfigFileEventHandler(FileSystemEventHandler):
 class AppGUI:
     def __init__(self, root):
         self.root = root
-        root.title("Twitch Auto-Title — UI")
+        root.title(I18N[LANGUAGE]["app_title"])
         root.geometry("1280x720")
         root.resizable(False, False)
 
+        # Language selector
+        lang_frame = tk.Frame(root)
+        lang_frame.pack(anchor='e', padx=10, pady=(8, 0))
+        self.lang_label = tk.Label(lang_frame, text=I18N[LANGUAGE]["language"], font=('Segoe UI', 9, 'bold'))
+        self.lang_label.pack(side='left', padx=(0, 6))
+        self.lang_var = tk.StringVar(value="English" if LANGUAGE == "en" else "中文")
+        self.lang_menu = tk.OptionMenu(lang_frame, self.lang_var, *LANGUAGE_LABEL_TO_CODE.keys(), command=self.change_language)
+        self.lang_menu.pack(side='left')
+
         # Current game display
-        tk.Label(root, text="Current Detected Game:", font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(10,0))
+        self.current_detected_label = tk.Label(root, text=I18N[LANGUAGE]["current_detected_game"], font=('Segoe UI', 10, 'bold'))
+        self.current_detected_label.pack(anchor='w', padx=10, pady=(10,0))
         self.current_label = tk.Label(root, text=CURRENT_GAME, font=('Segoe UI', 12))
         self.current_label.pack(anchor='w', padx=10)
 
         # Mappings list
-        tk.Label(root, text="Configured Game -> Process mappings:", font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(10,0))
+        self.configured_mappings_label = tk.Label(root, text=I18N[LANGUAGE]["configured_mappings"], font=('Segoe UI', 10, 'bold'))
+        self.configured_mappings_label.pack(anchor='w', padx=10, pady=(10,0))
         self.listbox = tk.Listbox(root, height=8, width=72)
         self.listbox.pack(padx=10, pady=(0,6))
         self.refresh_mappings()
 
         btn_frame = tk.Frame(root)
         btn_frame.pack(fill='x', padx=10)
-        tk.Button(btn_frame, text="Reload config.json", command=self.reload_config).pack(side='left')
-        tk.Button(btn_frame, text="Remove selected", command=self.remove_selected).pack(side='left', padx=6)
-        tk.Button(btn_frame, text="Edit Exclusions", command=self.open_exclusions_editor).pack(side='left', padx=6)
+        self.reload_btn = tk.Button(btn_frame, text=I18N[LANGUAGE]["reload_config"], command=self.reload_config)
+        self.reload_btn.pack(side='left')
+        self.remove_btn = tk.Button(btn_frame, text=I18N[LANGUAGE]["remove_selected"], command=self.remove_selected)
+        self.remove_btn.pack(side='left', padx=6)
+        self.edit_exclusions_btn = tk.Button(btn_frame, text=I18N[LANGUAGE]["edit_exclusions"], command=self.open_exclusions_editor)
+        self.edit_exclusions_btn.pack(side='left', padx=6)
 
         # Add custom mapping inputs
         frm = tk.Frame(root)
         frm.pack(fill='x', padx=10, pady=(10,0))
-        tk.Label(frm, text="Game Name:").grid(row=0, column=0, sticky='e')
-        tk.Label(frm, text="Process (select):").grid(row=1, column=0, sticky='ne')
-        tk.Label(frm, text="Twitch Category:").grid(row=2, column=0, sticky='e')
+        self.game_name_label = tk.Label(frm, text=I18N[LANGUAGE]["game_name"])
+        self.game_name_label.grid(row=0, column=0, sticky='e')
+        self.process_select_label = tk.Label(frm, text=I18N[LANGUAGE]["process_select"])
+        self.process_select_label.grid(row=1, column=0, sticky='ne')
+        self.twitch_category_label = tk.Label(frm, text=I18N[LANGUAGE]["twitch_category"])
+        self.twitch_category_label.grid(row=2, column=0, sticky='e')
 
         self.entry_game = tk.Entry(frm, width=40)
         self.proc_listbox = tk.Listbox(frm, height=6, width=40, exportselection=False)
@@ -416,28 +497,34 @@ class AppGUI:
 
         proc_btn_frame = tk.Frame(frm)
         proc_btn_frame.grid(row=1, column=2, padx=(4,0), sticky='n')
-        tk.Button(proc_btn_frame, text="Refresh", command=self.refresh_process_list).pack(pady=(0,2))
-        tk.Button(proc_btn_frame, text="Auto-select match", command=self.auto_select_process).pack()
+        self.proc_refresh_btn = tk.Button(proc_btn_frame, text=I18N[LANGUAGE]["refresh"], command=self.refresh_process_list)
+        self.proc_refresh_btn.pack(pady=(0,2))
+        self.proc_auto_btn = tk.Button(proc_btn_frame, text=I18N[LANGUAGE]["auto_select_match"], command=self.auto_select_process)
+        self.proc_auto_btn.pack()
 
         # 新增：自訂標題結尾輸入框
-        tk.Label(root, text="Custom Text (will be appended to the end of the title):", font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(10,0))
+        self.custom_text_label = tk.Label(root, text=I18N[LANGUAGE]["custom_text_hint"], font=('Segoe UI', 10, 'bold'))
+        self.custom_text_label.pack(anchor='w', padx=10, pady=(10,0))
         self.custom_text_entry = tk.Entry(root, width=80)
         self.custom_text_entry.pack(padx=10, pady=(0,10))
         self.custom_text_entry.insert(0, "")  # 預設空白
 
         # New: when no game/process is detected, keep last title or switch to default
         self.keep_last_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(
+        self.keep_last_checkbox = tk.Checkbutton(
             root,
-            text="When no game detected, keep last title (do not switch to Just Chatting)",
+            text=I18N[LANGUAGE]["keep_last_when_none"],
             variable=self.keep_last_var,
             onvalue=True,
             offvalue=False,
-        ).pack(anchor='w', padx=10, pady=(0, 10))
+        )
+        self.keep_last_checkbox.pack(anchor='w', padx=10, pady=(0, 10))
 
-        tk.Button(root, text="Add / Update mapping", command=self.add_mapping).pack(pady=8)
+        self.add_update_btn = tk.Button(root, text=I18N[LANGUAGE]["add_update"], command=self.add_mapping)
+        self.add_update_btn.pack(pady=8)
         # 新增：手動更新按鈕
-        tk.Button(root, text="Manual Update Title/Category", command=self.manual_update).pack(pady=4)
+        self.manual_update_btn = tk.Button(root, text=I18N[LANGUAGE]["manual_update"], command=self.manual_update)
+        self.manual_update_btn.pack(pady=4)
         self.status_label = tk.Label(root, text="", fg='green')
         self.status_label.pack()
 
@@ -446,6 +533,34 @@ class AppGUI:
         self.root.after(60000, self._periodic_process_refresh)
         self._update_loop()
         root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def change_language(self, language_label):
+        """Switch UI language at runtime and refresh all visible labels/buttons."""
+        global LANGUAGE
+        code = LANGUAGE_LABEL_TO_CODE.get(language_label, "en")
+        if code not in I18N:
+            code = "en"
+        LANGUAGE = code
+        self.apply_language()
+
+    def apply_language(self):
+        tr = I18N.get(LANGUAGE, I18N["en"])
+        self.root.title(tr["app_title"])
+        self.lang_label.config(text=tr["language"])
+        self.current_detected_label.config(text=tr["current_detected_game"])
+        self.configured_mappings_label.config(text=tr["configured_mappings"])
+        self.reload_btn.config(text=tr["reload_config"])
+        self.remove_btn.config(text=tr["remove_selected"])
+        self.edit_exclusions_btn.config(text=tr["edit_exclusions"])
+        self.game_name_label.config(text=tr["game_name"])
+        self.process_select_label.config(text=tr["process_select"])
+        self.twitch_category_label.config(text=tr["twitch_category"])
+        self.proc_refresh_btn.config(text=tr["refresh"])
+        self.proc_auto_btn.config(text=tr["auto_select_match"])
+        self.custom_text_label.config(text=tr["custom_text_hint"])
+        self.keep_last_checkbox.config(text=tr["keep_last_when_none"])
+        self.add_update_btn.config(text=tr["add_update"])
+        self.manual_update_btn.config(text=tr["manual_update"])
 
     def refresh_mappings(self):
         self.listbox.delete(0, tk.END)
@@ -581,8 +696,9 @@ class AppGUI:
 
     # new: open exclusions editor window
     def open_exclusions_editor(self):
+        tr = I18N.get(LANGUAGE, I18N["en"])
         win = tk.Toplevel(self.root)
-        win.title("Edit Excluded Processes")
+        win.title(tr["excluded_window"])
         win.geometry("960x420")
         win.transient(self.root)
 
@@ -592,7 +708,7 @@ class AppGUI:
         # Excluded names column
         left = tk.Frame(frame)
         left.pack(side='left', fill='both', expand=True, padx=(0,6))
-        tk.Label(left, text="Excluded Process Names (one per line)").pack(anchor='w')
+        tk.Label(left, text=tr["excluded_names"]).pack(anchor='w')
         # allow multi-select for names
         self.exc_names_lb = tk.Listbox(left, height=14, width=36, exportselection=False, selectmode=tk.EXTENDED)
         self.exc_names_lb.pack(fill='both', expand=True, padx=2, pady=4)
@@ -600,26 +716,26 @@ class AppGUI:
         en_frame.pack(fill='x')
         self.exc_name_entry = tk.Entry(en_frame)
         self.exc_name_entry.pack(side='left', fill='x', expand=True)
-        tk.Button(en_frame, text="Add", command=self.add_excluded_name).pack(side='left', padx=6)
-        tk.Button(left, text="Remove Selected", command=self.remove_selected_excluded_name).pack(pady=(6,0))
+        tk.Button(en_frame, text=tr["add"], command=self.add_excluded_name).pack(side='left', padx=6)
+        tk.Button(left, text=tr["remove_selected"], command=self.remove_selected_excluded_name).pack(pady=(6,0))
 
         # Running processes column (for selection to exclude)
         middle = tk.Frame(frame)
         middle.pack(side='left', fill='both', expand=True, padx=(6,6))
-        tk.Label(middle, text="Running Processes (select to add to exclusions)").pack(anchor='w')
+        tk.Label(middle, text=tr["running_processes"]).pack(anchor='w')
         # allow multi-select for running processes
         self.running_procs_lb = tk.Listbox(middle, height=14, width=36, exportselection=False, selectmode=tk.EXTENDED)
         self.running_procs_lb.pack(fill='both', expand=True, padx=2, pady=4)
         rp_btns = tk.Frame(middle)
         rp_btns.pack(fill='x')
-        tk.Button(rp_btns, text="Refresh", command=self.refresh_running_processes_list).pack(side='left')
-        tk.Button(rp_btns, text="Add Selected → Excluded Names", command=self.add_selected_running_to_excluded_name).pack(side='left', padx=6)
-        tk.Button(rp_btns, text="Add Selected → Excluded Prefixes", command=self.add_selected_running_to_excluded_prefix).pack(side='left', padx=6)
+        tk.Button(rp_btns, text=tr["refresh"], command=self.refresh_running_processes_list).pack(side='left')
+        tk.Button(rp_btns, text=tr["add_to_names"], command=self.add_selected_running_to_excluded_name).pack(side='left', padx=6)
+        tk.Button(rp_btns, text=tr["add_to_prefixes"], command=self.add_selected_running_to_excluded_prefix).pack(side='left', padx=6)
 
         # Excluded prefixes column
         right = tk.Frame(frame)
         right.pack(side='left', fill='both', expand=True, padx=(6,0))
-        tk.Label(right, text="Excluded Prefixes (starts-with)").pack(anchor='w')
+        tk.Label(right, text=tr["excluded_prefixes"]).pack(anchor='w')
         # allow multi-select for prefixes
         self.exc_prefix_lb = tk.Listbox(right, height=14, width=36, exportselection=False, selectmode=tk.EXTENDED)
         self.exc_prefix_lb.pack(fill='both', expand=True, padx=2, pady=4)
@@ -627,14 +743,14 @@ class AppGUI:
         pre_frame.pack(fill='x')
         self.exc_prefix_entry = tk.Entry(pre_frame)
         self.exc_prefix_entry.pack(side='left', fill='x', expand=True)
-        tk.Button(pre_frame, text="Add", command=self.add_excluded_prefix).pack(side='left', padx=6)
-        tk.Button(right, text="Remove Selected", command=self.remove_selected_excluded_prefix).pack(pady=(6,0))
+        tk.Button(pre_frame, text=tr["add"], command=self.add_excluded_prefix).pack(side='left', padx=6)
+        tk.Button(right, text=tr["remove_selected"], command=self.remove_selected_excluded_prefix).pack(pady=(6,0))
 
         # Save / Close
         btns = tk.Frame(win)
         btns.pack(fill='x', pady=(6,8), padx=8)
-        tk.Button(btns, text="Save", command=self.save_exclusions_and_close).pack(side='right', padx=6)
-        tk.Button(btns, text="Close", command=win.destroy).pack(side='right')
+        tk.Button(btns, text=tr["save"], command=self.save_exclusions_and_close).pack(side='right', padx=6)
+        tk.Button(btns, text=tr["close"], command=win.destroy).pack(side='right')
 
         # populate lists
         self.refresh_exclusions_lists()
@@ -746,7 +862,7 @@ class AppGUI:
             pass
         # close any open editor windows by destroying their top-level (caller will close)
         for w in self.root.winfo_children():
-            if isinstance(w, tk.Toplevel) and w.title() == "Edit Excluded Processes":
+            if isinstance(w, tk.Toplevel) and w.title() in ("Edit Excluded Processes", "編輯排除程序"):
                 w.destroy()
 
     def add_selected_running_to_excluded_name(self):
