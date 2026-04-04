@@ -223,4 +223,4 @@ pyvenv.cfg
 config.ini
 config.json
 config.ini
-RELEASE_NOTE.txt
+RELEASE_NOTE.md
