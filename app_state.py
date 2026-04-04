@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 
 
+APP_VERSION = "1.0.0"
+GITHUB_REPO = "QEXLAUWASD/Twitch-StreamManger"
+
 LANGUAGE_LABEL_TO_CODE = {
     "English": "en",
     "中文": "zh",
@@ -35,6 +38,10 @@ I18N = {
         "add_to_names": "Add Selected -> Excluded Names",
         "add_to_prefixes": "Add Selected -> Excluded Prefixes",
         "dark_mode": "Dark Mode",
+        "update_available": "Update Available",
+        "update_available_msg": "A new version {latest} is available (current: {current}).\nVisit the GitHub releases page to download it.",
+        "up_to_date": "Up to date",
+        "update_check_error": "Could not check for updates.",
     },
     "zh": {
         "app_title": "Twitch 自動標題 - 介面",
@@ -63,6 +70,10 @@ I18N = {
         "add_to_names": "將所選加入排除名稱",
         "add_to_prefixes": "將所選加入排除前綴",
         "dark_mode": "深色模式",
+        "update_available": "有新版本",
+        "update_available_msg": "發現新版本 {latest}（目前版本：{current}）。\n請前往 GitHub Releases 頁面下載。",
+        "up_to_date": "已是最新版本",
+        "update_check_error": "無法檢查更新。",
     },
 }
 

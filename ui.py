@@ -1,10 +1,13 @@
 import os
+import re
+import threading
 import tkinter as tk
 from tkinter import messagebox
 
 import psutil
+import requests
 
-from app_state import I18N, LANGUAGE_LABEL_TO_CODE, AppState
+from app_state import APP_VERSION, GITHUB_REPO, I18N, LANGUAGE_LABEL_TO_CODE, AppState
 from config_store import add_custom_game, apply_config_to_state, load_config, load_excluded_processes, save_config, save_excluded_processes
 from process_monitor import get_current_game, is_excluded_process
 from twitch_client import TwitchClient, format_title
@@ -142,6 +145,7 @@ class AppGUI:
         self.root.after(60000, self._periodic_process_refresh)
         self._update_loop()
         self.apply_theme()
+        self.root.after(3000, self._start_update_check)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def change_language(self, language_label):
@@ -176,6 +180,35 @@ class AppGUI:
         self.state.dark_mode = bool(self.dark_mode_var.get())
         self.apply_theme()
         save_config(self.base_dir, self.state)
+
+    def _start_update_check(self):
+        threading.Thread(target=self._check_for_update, daemon=True).start()
+
+    def _check_for_update(self):
+        tr = I18N.get(self.state.language, I18N["en"])
+        try:
+            resp = requests.get(
+                f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest",
+                timeout=8,
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            resp.raise_for_status()
+            tag = resp.json().get("tag_name", "")
+            latest = self._parse_version(tag)
+            current = self._parse_version(APP_VERSION)
+            if latest > current:
+                latest_str = ".".join(str(x) for x in latest)
+                msg = tr["update_available_msg"].format(latest=latest_str, current=APP_VERSION)
+                self.root.after(0, lambda: messagebox.showinfo(tr["update_available"], msg))
+        except Exception:
+            pass
+
+    @staticmethod
+    def _parse_version(tag: str) -> tuple:
+        m = re.search(r'(\d+\.\d+\.\d+)', tag)
+        if m:
+            return tuple(int(x) for x in m.group(1).split("."))
+        return (0, 0, 0)
 
     def apply_theme(self):
         t = THEMES["dark" if self.state.dark_mode else "light"]
