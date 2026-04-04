@@ -19,6 +19,9 @@ def apply_config_to_state(state: AppState, config: dict) -> None:
     state.base_template = config.get("base", " %game% %date%")
     state.process_names = config.get("process_name", {})
     state.twitch_categories = config.get("TwitchCategoryName", {})
+    state.language = config.get("language", state.language)
+    state.keep_last_when_no_game = config.get("keep_last_when_none", state.keep_last_when_no_game)
+    state.dark_mode = config.get("dark_mode", state.dark_mode)
 
 
 def save_config(base_dir: str, state: AppState) -> None:
@@ -28,6 +31,9 @@ def save_config(base_dir: str, state: AppState) -> None:
         state.app_config["TwitchCategoryName"] = {}
     if "base" not in state.app_config:
         state.app_config["base"] = state.base_template
+    state.app_config["language"] = state.language
+    state.app_config["keep_last_when_none"] = state.keep_last_when_no_game
+    state.app_config["dark_mode"] = state.dark_mode
 
     with open(os.path.join(base_dir, "config.json"), "w", encoding="utf-8") as f:
         json.dump(state.app_config, f, ensure_ascii=False, indent=4)

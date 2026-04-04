@@ -34,6 +34,7 @@ I18N = {
         "close": "Close",
         "add_to_names": "Add Selected -> Excluded Names",
         "add_to_prefixes": "Add Selected -> Excluded Prefixes",
+        "dark_mode": "Dark Mode",
     },
     "zh": {
         "app_title": "Twitch 自動標題 - 介面",
@@ -61,6 +62,7 @@ I18N = {
         "close": "關閉",
         "add_to_names": "將所選加入排除名稱",
         "add_to_prefixes": "將所選加入排除前綴",
+        "dark_mode": "深色模式",
     },
 }
 
@@ -77,3 +79,4 @@ class AppState:
     language: str = "zh"
     excluded_names: set[str] = field(default_factory=set)
     excluded_prefixes: list[str] = field(default_factory=list)
+    dark_mode: bool = False

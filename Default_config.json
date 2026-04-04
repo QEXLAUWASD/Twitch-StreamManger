@@ -43,5 +43,8 @@
         "Cities: Skylines II": "Cities: Skylines II",
         "CS2": "Counter-Strike",
         "滿意工廠": "Satisfactory"
-    }
+    },
+    "language": "zh",
+    "keep_last_when_none": true,
+    "dark_mode": true
 }

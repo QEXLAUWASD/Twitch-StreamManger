@@ -10,6 +10,9 @@
 - 提供 GUI 介面管理遊戲/程序/分類對應。
 - 提供排除清單編輯器（程序名稱與前綴）。
 - `config.json` 修改後可即時重新載入。
+- 深色模式切換（重啟後保留設定）。
+- UI 語言選擇（English / 中文，重啟後保留設定）。
+- 「保留上一個標題」設定重啟後保留。
 
 ## 環境需求
 
@@ -72,11 +75,14 @@ streamer_id = YOUR_STREAMER_ID
 
 ### `config.json`
 
-主要對應與標題模板檔：
+主要對應、標題模板與 UI 偏好設定檔：
 
 ```json
 {
   "base": "%game% %date%",
+  "language": "zh",
+  "keep_last_when_none": true,
+  "dark_mode": false,
   "process_name": {
     "Valorant": "VALORANT-Win64-Shipping.exe"
   },
@@ -87,6 +93,9 @@ streamer_id = YOUR_STREAMER_ID
 ```
 
 - `base`：標題模板（支援 `%game%` 與 `%date%`）
+- `language`：UI 語言 — `"en"` 或 `"zh"`（在 UI 中切換語言時自動儲存）
+- `keep_last_when_none`：為 `true` 時，偵測不到遊戲會保留上一個標題而非切換到 `Just Chatting`（切換時自動儲存）
+- `dark_mode`：為 `true` 時啟用深色模式（切換時自動儲存）
 - `process_name`：遊戲顯示名稱 -> 程序執行檔名稱
 - `TwitchCategoryName`：遊戲顯示名稱 -> Twitch 分類名稱
 
@@ -134,3 +143,4 @@ pyinstaller main.spec
 - 請妥善保管 `access_token`，不要把 `config.ini` 上傳到公開儲存庫。
 - Twitch API 呼叫失敗時，會在主控台顯示錯誤資訊。
 - 偵測不到遊戲時，可在 UI 設定「保留上一個標題」或切換回 `Just Chatting`。
+- 語言、深色模式與「保留上一個標題」設定在 UI 中變更時會自動儲存至 `config.json`。

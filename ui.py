@@ -10,6 +10,36 @@ from process_monitor import get_current_game, is_excluded_process
 from twitch_client import TwitchClient, format_title
 
 
+THEMES = {
+    "light": {
+        "bg": "SystemButtonFace",
+        "fg": "SystemWindowText",
+        "entry_bg": "SystemWindow",
+        "entry_fg": "SystemWindowText",
+        "listbox_bg": "SystemWindow",
+        "listbox_fg": "SystemWindowText",
+        "button_bg": "SystemButtonFace",
+        "button_fg": "SystemButtonText",
+        "select_bg": "SystemHighlight",
+        "select_fg": "SystemHighlightText",
+        "check_select": "SystemWindow",
+    },
+    "dark": {
+        "bg": "#1e1e1e",
+        "fg": "#d4d4d4",
+        "entry_bg": "#2d2d2d",
+        "entry_fg": "#d4d4d4",
+        "listbox_bg": "#2d2d2d",
+        "listbox_fg": "#d4d4d4",
+        "button_bg": "#3c3c3c",
+        "button_fg": "#d4d4d4",
+        "select_bg": "#264f78",
+        "select_fg": "#d4d4d4",
+        "check_select": "#2d2d2d",
+    },
+}
+
+
 class AppGUI:
     def __init__(self, root: tk.Tk, base_dir: str, state: AppState, twitch_client: TwitchClient, on_close_callback):
         self.root = root
@@ -29,6 +59,14 @@ class AppGUI:
         self.lang_var = tk.StringVar(value="English" if self.state.language == "en" else "中文")
         self.lang_menu = tk.OptionMenu(lang_frame, self.lang_var, *LANGUAGE_LABEL_TO_CODE.keys(), command=self.change_language)
         self.lang_menu.pack(side="left")
+        self.dark_mode_var = tk.BooleanVar(value=self.state.dark_mode)
+        self.dark_mode_check = tk.Checkbutton(
+            lang_frame,
+            text=I18N[self.state.language]["dark_mode"],
+            variable=self.dark_mode_var,
+            command=self.toggle_dark_mode,
+        )
+        self.dark_mode_check.pack(side="left", padx=(10, 0))
 
         self.current_detected_label = tk.Label(root, text=I18N[self.state.language]["current_detected_game"], font=("Segoe UI", 10, "bold"))
         self.current_detected_label.pack(anchor="w", padx=10, pady=(10, 0))
@@ -81,13 +119,14 @@ class AppGUI:
         self.custom_text_entry = tk.Entry(root, width=80)
         self.custom_text_entry.pack(padx=10, pady=(0, 10))
 
-        self.keep_last_var = tk.BooleanVar(value=True)
+        self.keep_last_var = tk.BooleanVar(value=self.state.keep_last_when_no_game)
         self.keep_last_checkbox = tk.Checkbutton(
             root,
             text=I18N[self.state.language]["keep_last_when_none"],
             variable=self.keep_last_var,
             onvalue=True,
             offvalue=False,
+            command=self._save_ui_settings,
         )
         self.keep_last_checkbox.pack(anchor="w", padx=10, pady=(0, 10))
 
@@ -102,6 +141,7 @@ class AppGUI:
         self.refresh_process_list()
         self.root.after(60000, self._periodic_process_refresh)
         self._update_loop()
+        self.apply_theme()
         root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def change_language(self, language_label):
@@ -110,6 +150,7 @@ class AppGUI:
             code = "en"
         self.state.language = code
         self.apply_language()
+        save_config(self.base_dir, self.state)
 
     def apply_language(self):
         tr = I18N.get(self.state.language, I18N["en"])
@@ -129,6 +170,61 @@ class AppGUI:
         self.keep_last_checkbox.config(text=tr["keep_last_when_none"])
         self.add_update_btn.config(text=tr["add_update"])
         self.manual_update_btn.config(text=tr["manual_update"])
+        self.dark_mode_check.config(text=tr["dark_mode"])
+
+    def toggle_dark_mode(self):
+        self.state.dark_mode = bool(self.dark_mode_var.get())
+        self.apply_theme()
+        save_config(self.base_dir, self.state)
+
+    def apply_theme(self):
+        t = THEMES["dark" if self.state.dark_mode else "light"]
+        self.root.config(bg=t["bg"])
+        for child in self.root.winfo_children():
+            self._apply_theme_to_widget(child, t)
+
+    def _apply_theme_to_widget(self, widget, t):
+        try:
+            if isinstance(widget, tk.OptionMenu):
+                widget.config(
+                    bg=t["button_bg"], fg=t["button_fg"],
+                    activebackground=t["select_bg"], activeforeground=t["select_fg"],
+                )
+                widget["menu"].config(
+                    bg=t["button_bg"], fg=t["button_fg"],
+                    activebackground=t["select_bg"], activeforeground=t["select_fg"],
+                )
+            elif isinstance(widget, tk.Checkbutton):
+                widget.config(
+                    bg=t["bg"], fg=t["fg"],
+                    activebackground=t["bg"], activeforeground=t["fg"],
+                    selectcolor=t["check_select"],
+                )
+            elif isinstance(widget, tk.Button):
+                widget.config(
+                    bg=t["button_bg"], fg=t["button_fg"],
+                    activebackground=t["select_bg"], activeforeground=t["select_fg"],
+                )
+            elif isinstance(widget, tk.Entry):
+                widget.config(
+                    bg=t["entry_bg"], fg=t["entry_fg"],
+                    insertbackground=t["fg"],
+                )
+            elif isinstance(widget, tk.Listbox):
+                widget.config(
+                    bg=t["listbox_bg"], fg=t["listbox_fg"],
+                    selectbackground=t["select_bg"], selectforeground=t["select_fg"],
+                )
+            elif isinstance(widget, tk.Label):
+                widget.config(bg=t["bg"], fg=t["fg"])
+            elif isinstance(widget, (tk.Frame, tk.LabelFrame)):
+                widget.config(bg=t["bg"])
+            elif isinstance(widget, tk.Toplevel):
+                widget.config(bg=t["bg"])
+        except tk.TclError:
+            pass
+        for child in widget.winfo_children():
+            self._apply_theme_to_widget(child, t)
 
     def refresh_mappings(self):
         self.listbox.delete(0, tk.END)
@@ -231,6 +327,10 @@ class AppGUI:
         self.current_label.config(text=self.state.current_game)
         self.root.after(1000, self._update_loop)
 
+    def _save_ui_settings(self):
+        self.state.keep_last_when_no_game = bool(self.keep_last_var.get())
+        save_config(self.base_dir, self.state)
+
     def on_close(self):
         try:
             self.on_close_callback()
@@ -291,6 +391,7 @@ class AppGUI:
 
         self.refresh_exclusions_lists()
         self.refresh_running_processes_list()
+        self.apply_theme()
 
     def refresh_running_processes_list(self):
         try:

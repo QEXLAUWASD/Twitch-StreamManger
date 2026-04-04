@@ -12,6 +12,9 @@ Chinese version: `README_zh.md`
 - GUI for managing game/process/category mappings.
 - Exclusion editor for process names and prefixes.
 - Live reload when `config.json` is modified.
+- Dark mode toggle (persisted across restarts).
+- UI language selection (English / 中文, persisted across restarts).
+- "Keep last title" setting persisted across restarts.
 
 ## Requirements
 
@@ -74,11 +77,14 @@ streamer_id = YOUR_STREAMER_ID
 
 ### `config.json`
 
-Main mapping and title template file:
+Main mapping, title template, and UI preferences file:
 
 ```json
 {
   "base": "%game% %date%",
+  "language": "en",
+  "keep_last_when_none": true,
+  "dark_mode": false,
   "process_name": {
     "Valorant": "VALORANT-Win64-Shipping.exe"
   },
@@ -89,6 +95,9 @@ Main mapping and title template file:
 ```
 
 - `base`: title template (supports `%game%` and `%date%`)
+- `language`: UI language — `"en"` or `"zh"` (saved automatically when changed in the UI)
+- `keep_last_when_none`: when `true`, keeps the last title instead of switching to `Just Chatting` when no game is detected (saved automatically when toggled)
+- `dark_mode`: when `true`, enables dark mode (saved automatically when toggled)
 - `process_name`: game display name -> process executable name
 - `TwitchCategoryName`: game display name -> Twitch category name
 
@@ -136,3 +145,4 @@ When packaged as onefile, the app uses the executable folder as runtime base dir
 - Keep your `access_token` secure. Do not commit `config.ini`.
 - Twitch API failures are printed in console logs.
 - If no game is detected, behavior can be changed in the UI (keep last title or fallback to `Just Chatting`).
+- Language, dark mode, and keep-last-title settings are saved automatically to `config.json` when changed.
