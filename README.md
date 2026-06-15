@@ -1,9 +1,5 @@
 # Twitch Stream Auto-Title (OBS Helper)
 
-> **Maintenance Mode:** This project is no longer receiving new features. Only bug fixes will be provided going forward.
->
-> The new version is available at: **https://github.com/QEXLAUWASD/OBSTwitch-StreamManger**
-
 Auto-detects the currently running game process and updates your Twitch stream title and category.
 
 Chinese version: `README_zh.md`

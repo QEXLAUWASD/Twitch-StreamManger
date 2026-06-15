@@ -1,9 +1,5 @@
 # Twitch Stream Auto-Title (OBS 輔助工具)
 
-> **維護模式：** 此專案不再新增功能。往後僅提供錯誤修復。
->
-> 新版本請前往：**https://github.com/QEXLAUWASD/OBSTwitch-StreamManger**
-
 自動偵測目前執行中的遊戲程序，並更新 Twitch 直播標題與分類。
 
 ## 功能特色
