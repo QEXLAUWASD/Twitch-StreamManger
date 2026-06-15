@@ -4,6 +4,8 @@ from pathlib import Path
 
 
 PROJECT_DIR = Path(globals().get("SPECPATH", ".")).resolve()
+
+# Auto-detect all local .py modules as hidden imports
 AUTO_HIDDEN_IMPORTS = sorted(
     {
         py_file.stem
@@ -12,13 +14,21 @@ AUTO_HIDDEN_IMPORTS = sorted(
     }
 )
 
+# Additional hidden imports required by the optimized codebase
+EXTRA_HIDDEN_IMPORTS = [
+    "urllib3.util.retry",       # twitch_client.py: Retry
+    "requests.adapters",        # twitch_client.py: HTTPAdapter
+]
+
+ALL_HIDDEN_IMPORTS = sorted(set(AUTO_HIDDEN_IMPORTS + EXTRA_HIDDEN_IMPORTS))
+
 
 a = Analysis(
     ['main.py'],
     pathex=[str(PROJECT_DIR)],
     binaries=[],
     datas=[],
-    hiddenimports=AUTO_HIDDEN_IMPORTS,
+    hiddenimports=ALL_HIDDEN_IMPORTS,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -34,7 +44,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='main',
+    name='TwitchStreamManager',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

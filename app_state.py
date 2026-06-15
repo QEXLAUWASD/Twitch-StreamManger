@@ -1,16 +1,29 @@
+"""Application state, constants, and internationalization (I18N) definitions."""
+
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import ClassVar
 
+APP_VERSION: str = "1.0.0"
+GITHUB_REPO: str = "QEXLAUWASD/Twitch-StreamManger"
 
-APP_VERSION = "1.0.0"
-GITHUB_REPO = "QEXLAUWASD/Twitch-StreamManger"
-
-LANGUAGE_LABEL_TO_CODE = {
+LANGUAGE_LABEL_TO_CODE: dict[str, str] = {
     "English": "en",
     "中文": "zh",
 }
 
+POLL_INTERVAL_SEC: int = 30
+UI_REFRESH_INTERVAL_MS: int = 1000
+PROCESS_LIST_REFRESH_INTERVAL_MS: int = 60_000
+PERIODIC_DEBUG_CYCLES: int = 10
+API_TIMEOUT_SEC: int = 10
+API_MAX_RETRIES: int = 2
+DEFAULT_TEMPLATE: str = " %game% %date%"
+FALLBACK_CATEGORY: str = "Just Chatting"
+NO_GAME_LABEL: str = "No game detected"
 
-I18N = {
+I18N: dict[str, dict[str, str]] = {
     "en": {
         "app_title": "Twitch Auto-Title - UI",
         "current_detected_game": "Current Detected Game:",
@@ -80,10 +93,12 @@ I18N = {
 
 @dataclass
 class AppState:
+    """Centralized application state shared across modules."""
+
     app_config: dict = field(default_factory=dict)
-    base_template: str = " %game% %date%"
-    process_names: dict = field(default_factory=dict)
-    twitch_categories: dict = field(default_factory=dict)
+    base_template: str = DEFAULT_TEMPLATE
+    process_names: dict[str, str] = field(default_factory=dict)
+    twitch_categories: dict[str, str] = field(default_factory=dict)
     current_game: str = "Unknown"
     custom_suffix: str = ""
     keep_last_when_no_game: bool = True

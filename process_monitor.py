@@ -1,12 +1,31 @@
+"""Process-detection engine: maps running processes → game names."""
+
+from __future__ import annotations
+
+import logging
 import time
+from typing import Sequence
 
 import psutil
 
-from app_state import AppState
+from app_state import (
+    FALLBACK_CATEGORY,
+    NO_GAME_LABEL,
+    PERIODIC_DEBUG_CYCLES,
+    POLL_INTERVAL_SEC,
+    AppState,
+)
 from twitch_client import TwitchClient, format_title
 
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Exclusion helpers
+# ---------------------------------------------------------------------------
 
 def is_excluded_process(proc_name: str, state: AppState) -> bool:
+    """Return ``True`` if *proc_name* should be ignored."""
     if not proc_name:
         return True
     name_l = proc_name.lower()
@@ -18,104 +37,129 @@ def is_excluded_process(proc_name: str, state: AppState) -> bool:
     return False
 
 
-def get_current_game(state: AppState) -> str | None:
-    detected_processes = []
+# ---------------------------------------------------------------------------
+# Process iteration (cached for one scan)
+# ---------------------------------------------------------------------------
 
-    for proc in psutil.process_iter(["name", "pid"]):
+def _iter_non_excluded(state: AppState) -> list[str]:
+    """Return a deduplicated, sorted list of non-excluded process names."""
+    names: set[str] = set()
+    for proc in psutil.process_iter(["name"]):
         try:
-            process_name = proc.info["name"]
-            if is_excluded_process(process_name, state):
-                continue
-            detected_processes.append(process_name)
-
-            for game, expected_proc in state.process_names.items():
-                if (
-                    process_name == expected_proc
-                    or (process_name and process_name.lower() == expected_proc.lower())
-                    or (expected_proc and expected_proc.lower() in process_name.lower())
-                ):
-                    print(f"FOUND GAME: {game} (Process: {process_name})")
-                    return game
-
+            name: str = proc.info["name"] or ""
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
+        if name and not is_excluded_process(name, state):
+            names.add(name)
+    return sorted(names, key=str.lower)
 
-    print(f"Looking for: {list(state.process_names.values())}")
-    print("Recent (non-excluded) processes detected:")
-    for proc in detected_processes[-10:]:
-        print(f"  - {proc}")
 
+# ---------------------------------------------------------------------------
+# Game detection
+# ---------------------------------------------------------------------------
+
+def get_current_game(state: AppState) -> str | None:
+    """Scan running processes and return the first matching game name.
+
+    The algorithm:
+    1. Collect all non-excluded process names in one pass.
+    2. For each configured ``(game, expected_proc)`` mapping, try exact
+       and fuzzy matches.  The first hit wins.
+    """
+    detected: list[str] = []
+    for proc_name in _iter_non_excluded(state):
+        detected.append(proc_name)
+
+        for game, expected_proc in state.process_names.items():
+            if _proc_matches(proc_name, expected_proc):
+                logger.info("FOUND GAME: %s (process: %s)", game, proc_name)
+                return game
+
+    # Diagnostics
+    logger.debug(
+        "Looking for: %s – recent processes (non-excluded): %s",
+        list(state.process_names.values()),
+        detected[-10:],
+    )
     return None
 
 
+def _proc_matches(actual: str, expected: str) -> bool:
+    """Fuzzy-match a process name against the configured expected name."""
+    if not expected:
+        return False
+    a = actual.lower()
+    e = expected.lower()
+    return a == e or e in a
+
+
+# ---------------------------------------------------------------------------
+# Debugging
+# ---------------------------------------------------------------------------
+
 def debug_all_processes(state: AppState) -> None:
-    print("\n=== DEBUG: All Running Processes (Full Scan) ===")
-    all_processes = []
-    excluded_count = 0
+    """Print a full snapshot of running processes (for troubleshooting)."""
+    all_names = _iter_non_excluded(state)
+    expected_vals = {v.lower() for v in state.process_names.values() if v}
 
-    for proc in psutil.process_iter(["name", "pid"]):
-        try:
-            name = proc.info["name"]
-            if is_excluded_process(name, state):
-                excluded_count += 1
-                continue
-            all_processes.append(name)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-
-    unique_processes = sorted(set(all_processes))
-    print(f"Total unique (non-excluded) processes: {len(unique_processes)} - excluded skipped: {excluded_count}")
-    print("\nLooking for these game processes:")
+    logger.debug("=== DEBUG: Running Processes ===")
+    logger.debug("Total unique (non-excluded): %d", len(all_names))
     for game, proc_name in state.process_names.items():
-        print(f"  - {game}: '{proc_name}'")
+        logger.debug("  Configured: %s → '%s'", game, proc_name)
 
-    print("\nAll running processes (non-excluded):")
-    for i, proc in enumerate(unique_processes):
-        for expected_proc in state.process_names.values():
-            if expected_proc and expected_proc.lower() in proc.lower():
-                print(f"  {i:3d}. {proc}  <-- POTENTIAL MATCH")
-                break
-        else:
-            print(f"  {i:3d}. {proc}")
-    print("=== END DEBUG ===\n")
+    for i, name in enumerate(all_names):
+        marker = "  <-- POTENTIAL MATCH" if any(
+            ev and ev in name.lower() for ev in expected_vals
+        ) else ""
+        logger.debug("  %3d. %s%s", i, name, marker)
+    logger.debug("=== END DEBUG ===")
 
+
+# ---------------------------------------------------------------------------
+# Monitoring loop
+# ---------------------------------------------------------------------------
 
 def monitor_game_and_update_title(state: AppState, twitch_client: TwitchClient) -> None:
-    last_game = None
-    debug_count = 0
+    """Main loop: detect game → update Twitch title & category."""
+    last_game: str | None = None
+    cycle_count: int = 0
 
-    print("Starting game monitoring...")
-    print(f"Monitoring for {len(state.process_names)} games")
+    logger.info("Starting game monitoring for %d games", len(state.process_names))
     debug_all_processes(state)
 
     while True:
         detected_game = get_current_game(state)
 
         if detected_game is None:
-            state.current_game = "No game detected"
+            state.current_game = NO_GAME_LABEL
             if state.keep_last_when_no_game:
-                time.sleep(30)
+                time.sleep(POLL_INTERVAL_SEC)
                 continue
-            current_game = "Just Chatting"
+            current_game = FALLBACK_CATEGORY
         else:
             current_game = detected_game
             state.current_game = current_game
 
         if current_game != last_game:
             last_game = current_game
-            print(f"Game changed to: {current_game}")
-            new_title = format_title(state.base_template, current_game)
-            if state.custom_suffix:
-                new_title = f"{new_title} {state.custom_suffix}"
-            twitch_client.update_stream_title(new_title)
+            logger.info("Game changed → %s", current_game)
+            _push_update(state, twitch_client, current_game)
 
-            category_name = state.twitch_categories.get(current_game, "Just Chatting")
-            twitch_client.update_stream_category(category_name)
+        cycle_count += 1
+        if cycle_count >= PERIODIC_DEBUG_CYCLES:
+            logger.debug("--- Periodic process check ---")
+            get_current_game(state)  # re-scan for logging
+            cycle_count = 0
 
-        debug_count += 1
-        if debug_count >= 10:
-            print("\n--- Periodic Process Check ---")
-            get_current_game(state)
-            debug_count = 0
+        time.sleep(POLL_INTERVAL_SEC)
 
-        time.sleep(30)
+
+def _push_update(state: AppState, twitch_client: TwitchClient, game: str) -> None:
+    """Build the formatted title and push it + the category to Twitch."""
+    new_title = format_title(state.base_template, game)
+    if state.custom_suffix:
+        new_title = f"{new_title} {state.custom_suffix}"
+    twitch_client.update_stream_title(new_title)
+
+    category = state.twitch_categories.get(game, FALLBACK_CATEGORY)
+    twitch_client.update_stream_category(category)
