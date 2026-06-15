@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-APP_VERSION: str = "1.0.0"
+APP_VERSION: str = "1.1.0"
 GITHUB_REPO: str = "QEXLAUWASD/Twitch-StreamManger"
 
 LANGUAGE_LABEL_TO_CODE: dict[str, str] = {
